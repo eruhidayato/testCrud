@@ -2,14 +2,35 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Presensi Santri</title>
   <link rel="manifest" href="manifest.json" />
+  <style>
+    body { font-family: Arial, sans-serif; padding: 1rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+    th { background-color: #f4f4f4; }
+    button { margin-right: 0.5rem; }
+  </style>
   <script defer src="app.js"></script>
 </head>
 <body>
   <h1>Presensi Santri</h1>
-  <ul id="santriList">Memuat data...</ul>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Nama</th>
+        <th>Kelas</th>
+        <th>Status</th>
+        <th>Aksi</th>
+      </tr>
+    </thead>
+    <tbody id="santriList">
+      <tr><td colspan="4">Memuat data...</td></tr>
+    </tbody>
+  </table>
+
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('service-worker.js');
