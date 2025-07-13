@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Presensi Santri</title>
+  <link rel="manifest" href="manifest.json" />
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <h1>Presensi Santri</h1>
+  <ul id="santriList"></ul>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js');
+    }
+  </script>
+</body>
+</html>
