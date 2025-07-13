@@ -1,34 +1,178 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Presensi Santri</title>
-  <link rel="manifest" href="manifest.json" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Presensi Santri Putra</title>
+
+  <!-- Firebase SDK (compat version) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <!-- Lottie Player -->
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
   <style>
-    body { font-family: Arial, sans-serif; padding: 1rem; }
+    body { font-family: sans-serif; padding: 1rem; }
     table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
-    th { background-color: #f4f4f4; }
-    button { margin-right: 0.5rem; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #f0f0f0; }
+    #loading { display: none; text-align: center; margin-top: 1rem; }
   </style>
-  <script defer src="app.js"></script>
 </head>
 <body>
-  <h1>Presensi Santri</h1>
+  <h1>Presensi Santri Putra</h1>
+  <form id="attendanceForm">
+    <label for="date">Tanggal:</label>
+    <input type="date" id="date" required><br>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Nama</th>
-        <th>Kelas</th>
-        <th>Status</th>
-        <th>Aksi</th>
-      </tr>
-    </thead>
-    <tbody id="santriList">
-      <tr><td colspan="4">Memuat data...</td></tr>
-    </tbody>
-  </table>
+    <div class="label-container">
+      <label for="guruId">Guru:</label>
+      <label style="cursor: pointer; color: blue; font-weight: normal;" onclick="showPopup()">Ubah Guru Default</label>
+    </div>
+    <select id="guruId" required></select><br>
+
+    <label>Jadwal Mengajar:</label>
+    <div id="scheduleContainer">
+      <table id="scheduleTable">
+        <thead>
+          <tr>
+            <th>Pilih</th><th>Waktu</th><th>Kelas</th><th>Mapel</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <input type="hidden" id="mataPelajaran">
+    <input type="hidden" id="kelas">
+    <input type="hidden" id="waktu">
+
+    <div id="presensiContainer">
+      <table id="presensiTable"></table>
+      <button type="button" onclick="submitForm()">Simpan</button>
+      <button type="button" onclick="updateForm()" style="display:none">Update</button>
+      <button type="button" onclick="deletePresensi()" style="display:none">Hapus</button>
+      <div id="responseMessage"></div>
+    </div>
+  </form>
+
+  <div id="loading">
+    <lottie-player src="https://assets10.lottiefiles.com/packages/lf20_usmfx6bp.json" background="transparent" speed="1" style="width: 300px; height: 300px;" loop autoplay></lottie-player>
+    <div id="loadingMessage"></div>
+  </div>
+
+  <script>
+    // TODO: Ganti dengan konfigurasi proyek Firebase kamu
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    async function loadGuru() {
+      const select = document.getElementById("guruId");
+      const snapshot = await db.collection("guru").get();
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const option = document.createElement("option");
+        option.value = data.id;
+        option.textContent = data["Nama Guru"];
+        select.appendChild(option);
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      await loadGuru();
+    });
+
+    document.getElementById("guruId").addEventListener("change", updateScheduleTable);
+    document.getElementById("date").addEventListener("change", updateScheduleTable);
+
+    async function updateScheduleTable() {
+      const guruId = document.getElementById("guruId").value;
+      const date = new Date(document.getElementById("date").value);
+      const hari = date.toLocaleDateString("id-ID", { weekday: "long" });
+      const tbody = document.querySelector("#scheduleTable tbody");
+      tbody.innerHTML = "";
+
+      const snapshot = await db.collection("mapel").where("idGuru", "==", guruId).where("Hari", "==", hari).get();
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td><input type="radio" name="jadwal" onclick="selectSchedule('${data.Kelas}', '${data['Mata Pelajaran']}', '${data.waktu}')"></td>
+          <td>${data.waktu}</td>
+          <td>${data.Kelas}</td>
+          <td>${data['Mata Pelajaran']}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    async function selectSchedule(kelas, mapel, waktu) {
+      document.getElementById("kelas").value = kelas;
+      document.getElementById("mataPelajaran").value = mapel;
+      document.getElementById("waktu").value = waktu;
+
+      const table = document.getElementById("presensiTable");
+      table.innerHTML = "<thead><tr><th>NIS</th><th>Nama</th><th>Status</th><th>Catatan</th></tr></thead><tbody></tbody>";
+      const tbody = table.querySelector("tbody");
+
+      const snapshot = await db.collection("santri").where("Kelas", "==", kelas).get();
+      snapshot.forEach(doc => {
+        const s = doc.data();
+        const row = document.createElement("tr");
+        row.dataset.nis = s.id;
+        row.dataset.nama = s["Nama Santri"];
+        row.innerHTML = `
+          <td>${s.id}</td>
+          <td>${s["Nama Santri"]}</td>
+          <td>
+            <select class="status">
+              <option value="Hadir">Hadir</option>
+              <option value="Izin">Izin</option>
+              <option value="Sakit">Sakit</option>
+              <option value="Alfa">Alfa</option>
+            </select>
+          </td>
+          <td><input type="text" class="catatan"></td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    async function submitForm() {
+      const guruId = document.getElementById("guruId").value;
+      const guruNama = document.getElementById("guruId").selectedOptions[0].textContent;
+      const kelas = document.getElementById("kelas").value;
+      const mapel = document.getElementById("mataPelajaran").value;
+      const waktu = document.getElementById("waktu").value;
+      const tanggal = document.getElementById("date").value;
+
+      const rows = document.querySelectorAll("#presensiTable tbody tr");
+      const batch = db.batch();
+
+      rows.forEach(row => {
+        const nis = row.dataset.nis;
+        const nama = row.dataset.nama;
+        const status = row.querySelector(".status").value;
+        const catatan = row.querySelector(".catatan").value;
+
+        const ref = db.collection("presensi").doc();
+        batch.set(ref, {
+          waktu, idGuru: guruId, namaguru: guruNama,
+          mapel, kelas, nis, namasantri: nama,
+          status, catatan, tanggal,
+          timestamp: new Date()
+        });
+      });
+
+      await batch.commit();
+      alert("✅ Presensi berhasil disimpan");
+    }
+  </script>
 </body>
 </html>
